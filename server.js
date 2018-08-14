@@ -42,20 +42,24 @@ server.on("upgrade", (req, socket) => {
     const encodedMessage = chunk.slice(6, chunk.length)
     const decodedMessage = Buffer.allocUnsafe(length)
     for (let i = 0; i < length; i++) {
-      console.log(i, i%4)
-      console.log(mask[i % 4])
       decodedMessage[i] = encodedMessage[i] ^ mask[i % 4]
     }
     console.log("Message:", decodedMessage.toString("utf8"))
+
+    const reply = new Buffer(20)
+    const replyMessage = "Hi from the server"
+    reply[0] = toDec("10000001")
+    reply[1] = toDec("00010010") // no mask + length
+    for (let i = 0; i < replyMessage.length; i++) {
+      reply[i+2] = replyMessage[i].charCodeAt(0)
+    }
+    socket.write(reply)
   })
-
-
-
 })
 
 server.listen(8000)
 
-  /*
+/** Demo request 
 const request = http.request({
   host: "localhost",
   port: 8000,
@@ -76,11 +80,5 @@ request.on("upgrade", (res, socket) => {
   socket.write("Message from the client")
 })
 request.end()
+
 */
-// Client and Server
-// 1. Client will initiate a request to start a websocket connection
-//    with "Connection: Upgrade" and "Upgrade: websocket" headers
-// 2. The client should also provide Sec-WebSocket-Key and 
-//    Sec_WebSocket-Version headers
-//     
-//    The current version of WebSockets is v13

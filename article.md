@@ -291,7 +291,7 @@ function bufferToBinary(buf) {
 
 `console.log(bufferToBinary(mask))` gives me `10011111101011110111011111111000`. This will be different every frame. The important thing to see if the mask is a 32 bit binary value.
 
-Now we have the length of the payload, and the mask. Let's decode the payload! Since we did all the work to get the mask, decoding is relatively easy. Since the mask is 4 bytes, we do `mask[i % 4]` to XOR the message:
+Now we have the length of the payload, and the mask. Let's decode the payload! Since we did all the work to get the mask, decoding is relatively easy. Since the mask is 4 bytes, we do `mask[i % 4]` to XOR the message.
 
 ```js
 const encodedMessage = chunk.slice(6, chunk.length)
@@ -304,6 +304,41 @@ console.log("Message:", decodedMessage.toString("utf8"))
 
 After decoding the message, we just change it to `utf8`, and if everything went well, `Websockets are great` is printed in the terminal.
 
+## Sending Data to the Client
 
+Although client to server messages must be masked, server to client messages shoud __not__ be masked, oddly enough. This means the data frame leaves out the mask bits, set the 1st bit of the second byte to 0 to indicate no mask, and appends the raw message without any encoding. An example follows:
 
-https://en.wikipedia.org/wiki/XOR_cipher
+```js
+const reply = new Buffer(20)
+const replyMessage = "Hi from the server"
+reply[0] = toDec("10000001")
+reply[1] = toDec("00010010") // no mask + length
+for (let i = 0; i < replyMessage.length; i++) {
+  reply[i+2] = replyMessage[i].charCodeAt(0)
+}
+socket.write(reply)
+```
+
+By no means a robust implementation - everything is hardcoded. The first bit is 1, indicating that this frame contains the entire message, and the 8th bit is 1 indicated the message is in text format. The second byte start with an 0, which means the data is not encoded, so there is no mask included. The remaning 7 bits are `0010010`, which is 20 - the length of the message.
+
+Lastly, we iterate over the message and encode the correct utf8 character code. Finally, the buffer is written to the socket using `socket.write`. In the browser, the message is printed in the `evt.data` property: `MessageEvent {isTrusted: true, data: "Hi from the server", origin: "ws://localhost:8000"......`.
+
+## Improvements
+
+There are a number of improvements that can be made to this implementation:
+
+- data frames with a length greater than 126 are not accounted for. Messages of any length should be processed.
+- the server -> client messaging is hardcoded. Messages of arbitrary length should be accounted for.
+- allow for ping/pong heartbeat messages. The server and client can, and should, check for connectivity every now and then. If either disconnects, the connection should be terminated gracefully.
+
+## Conclusion
+
+The WebSocket protocol is great for real time communications, but quite complex to implement from scratch. A well designed and tested library such as socket.io or ws for Node.js are better choices for production. I believe it is valuble to understand how a protocol or library works before reaching for dependency, so writing a simple implementation is definitely a valuable expierence. 
+
+## References
+
+- [Websockets 101](http://lucumr.pocoo.org/2012/9/24/websockets-101/) - a useful guide discussing WebSocket
+- [Writing WebSocket Servers](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API/Writing_WebSocket_servers) - a great MDN guide on WebSocket servers
+- [RFC 6455](https://datatracker.ietf.org/doc/rfc6455/?include_text=1) - The actual WebSocket protocol specification
+- [XOR Cypher](https://en.wikipedia.org/wiki/XOR_cipher) - Wikipedia article about XOR Cypher, the cypher used in client -> server messaging
+
