@@ -1,0 +1,12 @@
+{
+  "devDependencies": {
+    "jest": "^23.5.0"
+  },
+  "scripts": {
+    "test": "jest"
+  },
+  "jest": {
+    "testURL": "http://localhost"
+  },
+  "license": "MIT"
+}
