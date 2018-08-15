@@ -1,14 +1,9 @@
 const { toBin, toDec, bufferToBinary } = require("./util.js")
 
 function getOffset(length) {
-  switch (x) {
-    case x < 127:
-      return 0; break
-    case x <= 32767:
-      return 2; break
-    case x > 32767:
-      return 8; break
-  }
+  if (length < 126) return 0
+  if (length >= 126 < 32767) return 2
+  if (length > 32767) return 8 
 }
 
 function getPayloadLength(chunk) {
@@ -45,14 +40,15 @@ function receiveData(chunk, payload) {
   // Get length of the message
   const length = getPayloadLength(chunk)
   const offset = getOffset(length)
+  console.log(`Offset: ${offset}`)
   console.log(`Length: ${length}`)
   // Get the mask and display it nicely
-  const maskAsBin = bufferToBinary(chunk.slice(2 + extra, 6 + extra))
-  const mask = chunk.slice(2 + extra, 6 + extra)
+  const maskAsBin = bufferToBinary(chunk.slice(2 + offset, 6 + offset))
+  const mask = chunk.slice(2 + offset, 6 + offset)
   console.log(`Mask: ${maskAsBin}`)
 
   // Decode the message
-  const encodedMessage = chunk.slice(6 + extra, chunk.length)
+  const encodedMessage = chunk.slice(6 + offset, chunk.length)
   const decodedMessage = Buffer.allocUnsafe(parseInt(length))
   for (let i = 0; i < length; i++) {
     decodedMessage[i] = encodedMessage[i] ^ mask[i % 4]
