@@ -1,13 +1,41 @@
 const { toBin, toDec, bufferToBinary } = require("./util.js")
 
-function getExtendedPayloadLength(chunk) {
-  const extendedLength = chunk.slice(2, 4)
-  return toDec(bufferToBinary(extendedLength))
+function getOffset(length) {
+  switch (x) {
+    case x < 127:
+      return 0; break
+    case x <= 32767:
+      return 2; break
+    case x > 32767:
+      return 8; break
+  }
 }
 
-function getReallyExtendedPayloadLength(chunk) {
-  throw "TODO: Implement for 65kb+ payload"
-  return toDec(bufferToBinary(extendedLength))
+function getPayloadLength(chunk) {
+  const asBinary = toBin(chunk[1], 8)
+  const payloadLength = parseInt(toDec(asBinary.slice(1, 8)))
+
+  if (payloadLength < 126) {
+    return payloadLength
+  } else if (payloadLength === 126) {
+    // extended length
+    // Read the follow 16 bits (2 bytes)
+    return parseInt(
+      toDec(
+        [2, 3]
+          .map(x => toBin(chunk[x], 8))
+          .reduce((curr, acc) => curr + acc)
+      )
+    )
+  } else {
+    return parseInt(
+      toDec(
+        [2, 3, 4, 5, 6, 7, 8, 9]
+        .map(x => toBin(chunk[x], 8))
+        .reduce((acc, curr) => acc + curr)
+      )
+    )
+  }
 }
 
 function receiveData(chunk, payload) {
@@ -15,17 +43,8 @@ function receiveData(chunk, payload) {
   console.log(`Last Frame?: ${isLastFrame ? "true" : "false"}`)
 
   // Get length of the message
-  let length = parseInt(toDec(toBin(chunk[1]).slice(1, 8)))
-  let isLong = false
-
-  if (length === 126) {
-    length = getExtendedPayloadLength(chunk)
-    isLong = true
-  } else if (length === 127) {
-    length = getReallyExtendedPayloadLength(chunk)
-  }
-
-  let extra = isLong ? 2 : 0
+  const length = getPayloadLength(chunk)
+  const offset = getOffset(length)
   console.log(`Length: ${length}`)
   // Get the mask and display it nicely
   const maskAsBin = bufferToBinary(chunk.slice(2 + extra, 6 + extra))
@@ -45,4 +64,8 @@ function receiveData(chunk, payload) {
   }
 }
 
-module.exports = { receiveData }
+module.exports = {
+  receiveData,
+  getOffset,
+  getPayloadLength
+}
